@@ -22,7 +22,7 @@
     "build:esm": "tsc --module esnext --outDir dist/esm --declaration false && mv dist/esm/index.js dist/index.mjs && rm -rf dist/esm",
     "fix-esm-imports": "node fix-esm.js",
     "dev": "tsc --watch",
-    "prepublishOnly": "npm run build",
+    "prepublishOnly": "npm run test && npm run build",
     "publish:patch": "npm version patch && npm publish --access public",
     "publish:minor": "npm version minor && npm publish --access public",
     "publish:major": "npm version major && npm publish --access public",
