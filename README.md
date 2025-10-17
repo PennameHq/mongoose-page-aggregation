@@ -1,181 +1,195 @@
-# @pennameapi/page-aggregation
+# Mongoose Page Aggregation
 
-A standalone MongoDB pagination utility with aggregation support, extracted from PennameAPI.
+A standalone MongoDB Mongoose pagination utility powered by aggregation pipelines. This library provides efficient cursor-based pagination for MongoDB queries using Mongoose.
+
+[![npm version](https://img.shields.io/npm/v/@penname/mongoose-page-aggregation.svg)](https://www.npmjs.com/package/@penname/mongoose-page-aggregation)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ## Features
 
-- **Efficient Pagination**: Cursor-based pagination for large datasets
-- **MongoDB Aggregation**: Full support for MongoDB aggregation pipelines
-- **Population Support**: Join collections with advanced population options
-- **Grouping & Sorting**: Built-in support for grouping and custom sorting
-- **TypeScript**: Full TypeScript support with comprehensive type definitions
-- **Zero Dependencies**: Only requires Mongoose as a peer dependency
+- **Cursor-based Pagination**: Efficient pagination using MongoDB aggregation pipelines
+- **Flexible Sorting**: Support for ascending and descending sort orders
+- **Custom Queries**: Filter documents with custom find queries
+- **Population Support**: Populate related documents using Mongoose populators
+- **Grouping**: Group results by specified fields with optional aggregations
+- **Type-Safe**: Full TypeScript support with comprehensive type definitions
+- **Lightweight**: Zero dependencies (Mongoose is a peer dependency)
+- **ESM & CJS**: Supports both ES modules and CommonJS
 
 ## Installation
 
 ```bash
-npm install @pennameapi/page-aggregation
+npm install @penname/mongoose-page-aggregation mongoose
 ```
 
-**Peer Dependencies:**
-- `mongoose >= 8.7.0`
+Or with yarn:
 
-## Usage
+```bash
+yarn add @penname/mongoose-page-aggregation mongoose
+```
 
-### Basic Pagination
+## Requirements
+
+- **Node.js**: 14.0.0 or higher
+- **Mongoose**: 8.7.0 or higher
+
+## Quick Start
 
 ```typescript
-import { pageAggregation, PageAggregationConfig } from '@pennameapi/page-aggregation'
-import { UserModel } from './models/User'
+import mongoose from 'mongoose'
+import { pageAggregation, DbPagerSortOrder } from '@penname/mongoose-page-aggregation'
 
-const config: PageAggregationConfig = {
-  Model: UserModel,
-  findQuery: { active: true },
-  pager: {
-    field: 'createdAt',
-    limit: 20,
-    sortAsc: false
-  }
+// Define your schema
+const UserSchema = new mongoose.Schema({
+  name: String,
+  email: String,
+  createdAt: { type: Date, default: Date.now },
+  active: { type: Boolean, default: true }
+})
+
+const User = mongoose.model('User', UserSchema)
+
+// Basic pagination
+async function getUsers() {
+  const result = await pageAggregation({
+    Model: User,
+    findQuery: { active: true },
+    pager: {
+      field: 'createdAt',
+      limit: 10,
+      sortOrder: DbPagerSortOrder.Descending
+    }
+  })
+
+  console.log('Users:', result.dbObjects)
+  console.log('Total:', result.total)
+  console.log('Can load more:', result.canLoadMore)
 }
-
-const result = await pageAggregation(config)
-console.log(result.dbObjects) // Array of user documents
-console.log(result.canLoadMore) // Boolean indicating if more pages exist
-console.log(result.from) // Cursor for next page
 ```
+
+## API Reference
+
+### `pageAggregation(config)`
+
+Main function for paginated queries.
+
+#### Parameters
+
+**`config: PageAggregationConfig`**
+
+- **`Model`** (required): Mongoose model to query
+- **`findQuery`** (required): MongoDB query filter object
+- **`pager`** (required): Pagination configuration
+  - **`field`** (required): Field to paginate on (typically a date or ID)
+  - **`limit`** (optional): Number of documents per page (default: 10)
+  - **`sortOrder`** (optional): `DbPagerSortOrder.Ascending` or `DbPagerSortOrder.Descending`
+  - **`sortAsc`** (optional): Boolean alternative to `sortOrder`
+  - **`from`** (optional): Cursor object for fetching next page
+  - **`groupBy`** (optional): Group results by specified fields
+- **`shouldSecordarySortOnId`** (optional): Enable secondary sorting by `_id`
+- **`populators`** (optional): Array of population configurations
+- **`postPopulatorFilter`** (optional): Filter after population
+- **`skipCache`** (optional): Skip caching for this query
+- **`runQuery`** (optional): Custom query execution function
+
+#### Returns
+
+**`PageAggregationResult<D>`**
+
+- **`dbObjects`**: Array of paginated documents
+- **`total`**: Total count of matching documents
+- **`size`**: Number of documents in current page
+- **`limit`**: Limit used for pagination
+- **`canLoadMore`**: Whether more documents are available
+- **`from`**: Cursor object for next page
+- **`sortOrder`**: Sort order used
+- **`startedAt`**: ISO timestamp when query started
+- **`finishedAt`**: ISO timestamp when query finished
+
+## Examples
 
 ### Pagination with Cursor
 
 ```typescript
-// Load next page using cursor from previous result
-const nextPageConfig: PageAggregationConfig = {
-  Model: UserModel,
+// First page
+const firstPage = await pageAggregation({
+  Model: User,
   findQuery: { active: true },
   pager: {
     field: 'createdAt',
-    limit: 20,
-    sortAsc: false,
-    from: result.from // Use cursor from previous page
+    limit: 10,
+    sortOrder: DbPagerSortOrder.Descending
   }
-}
+})
 
-const nextPage = await pageAggregation(nextPageConfig)
+// Next page
+if (firstPage.canLoadMore) {
+  const nextPage = await pageAggregation({
+    Model: User,
+    findQuery: { active: true },
+    pager: {
+      field: 'createdAt',
+      limit: 10,
+      sortOrder: DbPagerSortOrder.Descending,
+      from: firstPage.from
+    }
+  })
+}
 ```
 
-### Population (Joins)
+### Grouping Results
 
 ```typescript
-const config: PageAggregationConfig = {
-  Model: PostModel,
-  findQuery: { published: true },
+const grouped = await pageAggregation({
+  Model: User,
+  findQuery: { active: true },
+  pager: {
+    field: 'createdAt',
+    limit: 10,
+    groupBy: {
+      fields: ['department'],
+      countAs: 'count'
+    }
+  }
+})
+```
+
+### Population
+
+```typescript
+const withPosts = await pageAggregation({
+  Model: User,
+  findQuery: { active: true },
   pager: {
     field: 'createdAt',
     limit: 10
   },
   populators: [
     {
-      Model: UserModel,
-      localField: 'authorId',
-      targetField: '_id',
-      as: 'author'
+      Model: Post,
+      localField: '_id',
+      targetField: 'userId',
+      as: 'posts'
     }
   ]
-}
-
-const result = await pageAggregation(config)
-// Each post will have an 'author' field with populated user data
-```
-
-### Grouping
-
-```typescript
-const config: PageAggregationConfig = {
-  Model: OrderModel,
-  findQuery: { status: 'completed' },
-  pager: {
-    field: 'createdAt',
-    limit: 50,
-    groupBy: {
-      fields: ['customerId'],
-      countAs: 'orderCount',
-      fieldSumMap: {
-        'amount': 'totalAmount'
-      }
-    }
-  }
-}
-
-const result = await pageAggregation(config)
-// Results grouped by customerId with order count and total amount
-```
-
-## API Reference
-
-### `pageAggregation<T>(config: PageAggregationConfig): Promise<PageAggregationResult<T>>`
-
-Main pagination function.
-
-#### PageAggregationConfig
-
-```typescript
-interface PageAggregationConfig {
-  Model: mongoose.Model<any>
-  findQuery: { [key: string]: any }
-  pager: {
-    field: string
-    groupBy?: {
-      fields: string[]
-      sortBefore?: true
-      projectFields?: string[]
-      countAs?: string
-      fieldSumMap?: Record<string, string>
-    }
-    sortAsc?: boolean
-    sortOrder?: DbPagerSortOrder
-    from?: { [key: string]: any }
-    limit?: number | string
-  }
-  shouldSecordarySortOnId?: boolean
-  populators?: PopulatorConfig[]
-  postPopulatorFilter?: { [key: string]: any }
-  skipCache?: boolean
-}
-```
-
-#### PageAggregationResult
-
-```typescript
-interface PageAggregationResult<D extends DbObject = DbObject> {
-  dbObjects: (D & { _retained?: Record<string, any> })[]
-  from: { [key: string]: any } | null
-  total: number
-  canLoadMore: boolean
-  sortOrder: DbPagerSortOrder
-  size: number
-  limit: number
-  startedAt: IsoDate
-  finishedAt: IsoDate
-}
+})
 ```
 
 ## Utility Functions
 
-The package also exports useful utility functions:
+The library exports several utility functions:
 
-- `isValidId(id)` - Check if a string is a valid MongoDB ObjectId
-- `toObjectId(id)` - Convert string to MongoDB ObjectId
-- `getModelCollectionName(model)` - Get collection name from Mongoose model
-- `isValidDate(date)` - Check if a value is a valid date
-- `compute(fn)` - Simple computation helper
-
-## Migration from PennameAPI
-
-If you're migrating from the original PennameAPI implementation:
-
-1. **Caching Removed**: The `skipCache` parameter is still accepted but ignored. Implement your own caching layer if needed.
-2. **Direct Database Calls**: All queries now go directly to MongoDB without caching middleware.
-3. **Same API**: All other functionality remains identical.
+- **`isValidId(id)`**: Check if a string is a valid MongoDB ObjectId
+- **`toObjectId(id)`**: Convert a string to MongoDB ObjectId
+- **`isValidDate(value)`**: Check if a value is a valid date
+- **`getModelCollectionName(model)`**: Get collection name from Mongoose model
+- **`compute(fn)`**: Execute a function and return its result
 
 ## License
 
-MIT
+MIT © 2025 PennameHq
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
