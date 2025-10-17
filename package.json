@@ -1,5 +1,5 @@
 {
-  "name": "@pennameapi/mongoose-page-aggregation",
+  "name": "@penname/mongoose-page-aggregation",
   "version": "1.0.0",
   "description": "Standalone MongoDB Mongoose pagination utility via the power of aggregation pipelines",
   "main": "dist/index.js",
@@ -23,6 +23,10 @@
     "fix-esm-imports": "node fix-esm.js",
     "dev": "tsc --watch",
     "prepublishOnly": "npm run build",
+    "publish": "npm publish --access public",
+    "publish:patch": "npm version patch && npm run publish",
+    "publish:minor": "npm version minor && npm run publish",
+    "publish:major": "npm version major && npm run publish",
     "test": "jest",
     "test:watch": "jest --watch"
   },
