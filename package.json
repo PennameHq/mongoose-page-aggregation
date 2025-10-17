@@ -1,6 +1,6 @@
 {
   "name": "@penname/mongoose-page-aggregation",
-  "version": "1.0.2",
+  "version": "1.0.1",
   "description": "Standalone MongoDB Mongoose pagination utility via the power of aggregation pipelines",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
