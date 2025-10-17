@@ -1,0 +1,29 @@
+# Source files
+src/
+__tests__/
+
+# Development files
+*.config.js
+*.config.ts
+tsconfig.json
+jest.config.js
+rolldown.config.js
+
+# Example and documentation
+example.ts
+
+# Git and IDE
+.git/
+.gitignore
+.vscode/
+.idea/
+
+# Dependencies
+node_modules/
+package-lock.json
+
+# Build artifacts (keep only dist/)
+coverage/
+*.log
+*.tgz
+fix-esm.js
